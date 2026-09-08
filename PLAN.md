@@ -48,8 +48,9 @@ bookable slots and prevent double-booking under concurrent submissions, on a DB 
 - [x] `app.json`: `web.output` → `"server"`
 - [x] Install `drizzle-orm`, `@neondatabase/serverless`, `drizzle-kit` (devDependency)
 - [ ] Create Neon project, get `DATABASE_URL` (needed to actually run migrations/tests against a real DB)
-- [ ] Create Clerk project, enable Google + Apple providers, configure session-token claim customization to include `role`
-- [ ] Install `expo-dev-client`; produce first development build (`eas build --profile development`)
+- [x] Create Clerk project, enable Google + Apple providers
+- [ ] Configure session-token claim customization to include `role`
+- [x] Install `expo-dev-client`; local development build working (`npx expo prebuild --clean` + `npx expo run:ios`) — not yet produced via EAS cloud build
 - [ ] Create Sentry project(s) (client + Workers)
 - [ ] Install & run Inngest Dev Server locally (`npx inngest-cli@latest dev`) — no Inngest Cloud account needed yet
 
@@ -89,13 +90,14 @@ bookable slots and prevent double-booking under concurrent submissions, on a DB 
 
 ## Phase 2 — Auth & profile
 
-- [ ] Install `@clerk/expo`, `expo-secure-store`, `expo-apple-authentication`, `expo-crypto`, `@clerk/backend`, `svix`
-- [ ] `_layout.tsx`: `<ClerkProvider tokenCache={secureStoreTokenCache}>` + `<ClerkLoaded>`
-- [ ] `(auth)/sign-in.tsx` — native Google + Apple buttons
-- [ ] Google native sign-in wired (Credential Manager / `EXPO_PUBLIC_CLERK_GOOGLE_IOS_URL_SCHEME`)
-- [ ] Apple native sign-in wired (`useSignInWithApple()` + config plugin entitlements)
+- [x] Install `@clerk/expo`, `expo-secure-store`, `expo-apple-authentication`, `expo-crypto`
+- [ ] Install `@clerk/backend`, `svix` (needed for the webhook handler below)
+- [x] `_layout.tsx`: `<ClerkProvider>` + `tokenCache` from `@clerk/expo/token-cache` (loading state gated via `useAuth().isLoaded` in `index.tsx` instead of a separate `<ClerkLoaded>` wrapper)
+- [x] Combined sign-in UI — Google + Apple on one screen, by choice (`src/app/index.tsx`, not a separate `(auth)/sign-in.tsx`)
+- [x] Google sign-in wired via browser SSO (`useSSO()`, `strategy: "oauth_google"`) — publishable key only, no separate Google Cloud OAuth clients or native Credential Manager
+- [x] Apple native sign-in wired (`useSignInWithApple()` from `@clerk/expo/apple` + `expo-apple-authentication` config plugin entitlement)
 - [ ] `src/lib/auth/context.ts` — `getAuthContext(request)`, `requireManager(request)`
-- [ ] `src/app/index.tsx` — role/auth router (signed-out → auth, manager → manager, customer incomplete profile → onboarding, else → customer)
+- [ ] `src/app/index.tsx` — full role/auth router (currently just signed-out → auth screen, signed-in → placeholder screen; manager/customer/onboarding branches not built yet)
 - [ ] `(customer)/_layout.tsx` and `(manager)/_layout.tsx` guards mirroring the router
 - [ ] `/api/webhooks/clerk+api.ts` — svix-verified `user.created`/`user.updated` → `inngest.send`
 - [ ] Inngest function: idempotent `profiles` upsert (`onConflictDoUpdate` on `clerkUserId`) + role mirror
