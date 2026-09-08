@@ -47,18 +47,18 @@ bookable slots and prevent double-booking under concurrent submissions, on a DB 
 
 - [x] `app.json`: `web.output` → `"server"`
 - [x] Install `drizzle-orm`, `@neondatabase/serverless`, `drizzle-kit` (devDependency)
-- [ ] Create Neon project, get `DATABASE_URL` (needed to actually run migrations/tests against a real DB)
+- [x] Create Neon project, get `DATABASE_URL` (needed to actually run migrations/tests against a real DB)
 - [x] Create Clerk project, enable Google + Apple providers
 - [ ] Configure session-token claim customization to include `role`
 - [x] Install `expo-dev-client`; local development build working (`npx expo prebuild --clean` + `npx expo run:ios`) — not yet produced via EAS cloud build
 - [ ] Create Sentry project(s) (client + Workers)
-- [ ] Install & run Inngest Dev Server locally (`npx inngest-cli@latest dev`) — no Inngest Cloud account needed yet
+- [x] Install & run Inngest Dev Server locally (`npx inngest-cli@latest dev`) — no Inngest Cloud account needed yet
 
 ## Phase 1 — Schema + availability engine + tests (highest risk, do first)
 
 - [ ] `src/lib/db/schema.ts` — Drizzle schema: `locations`, `profiles`, `weekly_schedules`, `date_overrides`, `treatments`, `slot_definitions`, `capacity_configs`, `booking_windows`, `bookings` (+ indexes)
-- [ ] `src/lib/db/client.ts` — `neon()` + `drizzle(neon-http)` instance
-- [ ] `drizzle.config.ts` + first migration generated (`drizzle-kit generate`)
+- [x] `src/lib/db/client.ts` — `neon()` + `drizzle(neon-http)` instance
+- [x] `drizzle.config.ts` + first migration generated (`drizzle-kit generate`)
 - [ ] `src/lib/db/sql/create_booking_safe.sql` — Postgres function (advisory lock + full re-validation + insert)
 - [ ] Apply `create_booking_safe` as a raw migration
 - [ ] `src/lib/availability/engine.ts`:
@@ -90,17 +90,18 @@ bookable slots and prevent double-booking under concurrent submissions, on a DB 
 
 ## Phase 2 — Auth & profile
 
-- [x] Install `@clerk/expo`, `expo-secure-store`, `expo-apple-authentication`, `expo-crypto`
-- [ ] Install `@clerk/backend`, `svix` (needed for the webhook handler below)
+- [x] Install `@clerk/expo`, `expo-secure-store`
+- [x] Install `@clerk/backend` (needed for the webhook handler below; `svix` verification is handled internally by `@clerk/backend/webhooks`, no separate install needed)
 - [x] `_layout.tsx`: `<ClerkProvider>` + `tokenCache` from `@clerk/expo/token-cache` (loading state gated via `useAuth().isLoaded` in `index.tsx` instead of a separate `<ClerkLoaded>` wrapper)
 - [x] Combined sign-in UI — Google + Apple on one screen, by choice (`src/app/index.tsx`, not a separate `(auth)/sign-in.tsx`)
 - [x] Google sign-in wired via browser SSO (`useSSO()`, `strategy: "oauth_google"`) — publishable key only, no separate Google Cloud OAuth clients or native Credential Manager
-- [x] Apple native sign-in wired (`useSignInWithApple()` from `@clerk/expo/apple` + `expo-apple-authentication` config plugin entitlement)
+- [x] Apple sign-in wired via browser SSO (`useSSO()`, `strategy: "oauth_apple"`) — deliberately not the native `expo-apple-authentication` flow, since that requires a paid Apple Developer Program membership to provision the Sign in with Apple capability, which isn't available yet
 - [ ] `src/lib/auth/context.ts` — `getAuthContext(request)`, `requireManager(request)`
 - [ ] `src/app/index.tsx` — full role/auth router (currently just signed-out → auth screen, signed-in → placeholder screen; manager/customer/onboarding branches not built yet)
 - [ ] `(customer)/_layout.tsx` and `(manager)/_layout.tsx` guards mirroring the router
-- [ ] `/api/webhooks/clerk+api.ts` — svix-verified `user.created`/`user.updated` → `inngest.send`
-- [ ] Inngest function: idempotent `profiles` upsert (`onConflictDoUpdate` on `clerkUserId`) + role mirror
+- [x] `/api/webhooks/clerk+api.ts` — svix-verified `user.created`/`user.updated`/`user.deleted` → `inngest.send`
+- [x] Inngest function: idempotent `profiles` upsert (`onConflictDoUpdate` on `clerkUserId`) + role mirror, for `user.created`/`user.updated` (`src/lib/inngest/functions/sync-user-from-clerk.ts`)
+- [x] Inngest function: `profiles` row deletion on `user.deleted` (`src/lib/inngest/functions/delete-user-from-clerk.ts`)
 - [ ] `/api/profile+api.ts` (GET/PUT)
 - [ ] `(customer)/onboarding/profile.tsx` — first-time name/phone capture
 
