@@ -3,13 +3,11 @@ import {
   ActivityIndicator,
   Image,
   ImageBackground,
-  Platform,
   Pressable,
   Text,
   View,
 } from "react-native";
 import { useAuth, useSSO, useUser } from "@clerk/expo";
-import { useSignInWithApple } from "@clerk/expo/apple";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -23,10 +21,9 @@ const AUTH_BACKGROUND = require("@/assets/images/auth/auth-background.png");
 const GOOGLE_ICON = require("@/assets/images/auth/google-icon.png");
 const APPLE_ICON = require("@/assets/images/auth/apple-icon.png");
 
-// Google goes through browser SSO (works on iOS, Android, and web with just the
-// publishable key — no separate Google Cloud OAuth clients needed). Native Apple
-// sign-in is iOS-only.
-const APPLE_SUPPORTED = Platform.OS === "ios";
+// Both providers go through browser SSO (works on iOS, Android, and web) with
+// just the publishable key — no Google Cloud OAuth clients, no Apple Developer
+// Program membership / native capability provisioning required.
 
 // `JSON.stringify(error)` on a real Error yields "{}" — message/stack aren't
 // enumerable — so pull the message out explicitly. Shown as-is in dev to make
@@ -74,7 +71,6 @@ function SocialButton({ icon, label, iconClassName, disabled, onPress }: SocialB
 
 function SignInScreen() {
   const { startSSOFlow } = useSSO();
-  const { startAppleAuthenticationFlow } = useSignInWithApple();
   const [pending, setPending] = useState<"google" | "apple" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -103,15 +99,16 @@ function SignInScreen() {
     setError(null);
     setPending("apple");
     try {
-      const { createdSessionId, setActive } = await startAppleAuthenticationFlow();
+      const { createdSessionId, setActive, signUp } = await startSSOFlow({
+        strategy: "oauth_apple",
+      });
       if (createdSessionId && setActive) {
         await setActive({ session: createdSessionId });
+      } else if (signUp?.status === "missing_requirements") {
+        setError("Your Apple account is missing info this app requires.");
       }
-    } catch (err: any) {
-      if (err?.code === "ERR_REQUEST_CANCELED") {
-        // User dismissed the native Apple sheet.
-        return;
-      }
+      // No createdSessionId and no missing requirements → user cancelled.
+    } catch (err) {
       console.error("Apple sign-in error:", describeAuthError(err));
       setError(describeAuthError(err));
     } finally {
@@ -150,15 +147,13 @@ function SignInScreen() {
               disabled={pending !== null}
               onPress={handleGoogleSignIn}
             />
-            {APPLE_SUPPORTED && (
-              <SocialButton
-                icon={APPLE_ICON}
-                iconClassName="h-[26px] w-[22px]"
-                label="Continue with Apple"
-                disabled={pending !== null}
-                onPress={handleAppleSignIn}
-              />
-            )}
+            <SocialButton
+              icon={APPLE_ICON}
+              iconClassName="h-[26px] w-[22px]"
+              label="Continue with Apple"
+              disabled={pending !== null}
+              onPress={handleAppleSignIn}
+            />
             {pending !== null && (
               <ActivityIndicator color={NAVY} className="mt-1" />
             )}
