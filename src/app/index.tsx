@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -10,6 +10,8 @@ import {
 import { useAuth, useSSO, useUser } from "@clerk/expo";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+import ProfileOnboardingScreen from "@/app/(customer)/onboarding/profile";
 
 // Palette sampled from design/Auth-UI-Design.png
 const NAVY = "#0B3477";
@@ -201,10 +203,56 @@ function SignedInPlaceholder() {
   );
 }
 
+type ProfileCompletion = "checking" | "incomplete" | "complete";
+
+// Onboarding (`(customer)/onboarding/profile.tsx`) collects `phone`, which
+// Clerk never has (Google/Apple sign-in only) — so "has the profile row got
+// a phone yet" is the only reliable "did they finish onboarding" signal, and
+// it has to come from our own DB rather than `useUser()`.
+function useProfileCompletion(
+  isSignedIn: boolean | undefined,
+): [ProfileCompletion, () => void] {
+  const { getToken } = useAuth();
+  const [status, setStatus] = useState<ProfileCompletion>("checking");
+
+  useEffect(() => {
+    if (!isSignedIn) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getToken();
+        const res = await fetch("/api/profile", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (cancelled) return;
+        if (!res.ok) {
+          // Row not created yet (Clerk webhook → Inngest sync can lag right
+          // after sign-up) or a transient error — onboarding is the safer
+          // default over getting stuck on a spinner.
+          setStatus("incomplete");
+          return;
+        }
+        const profile = await res.json();
+        setStatus(profile.phone ? "complete" : "incomplete");
+      } catch (err) {
+        console.error("Failed to check profile completion:", err);
+        if (!cancelled) setStatus("incomplete");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isSignedIn, getToken]);
+
+  const markComplete = () => setStatus("complete");
+  return [status, markComplete];
+}
+
 export default function Index() {
   const { isLoaded, isSignedIn } = useAuth();
+  const [profileCompletion, markProfileComplete] = useProfileCompletion(isSignedIn);
 
-  if (!isLoaded) {
+  if (!isLoaded || (isSignedIn && profileCompletion === "checking")) {
     return (
       <View className="flex-1 items-center justify-center bg-white">
         <ActivityIndicator color={NAVY} />
@@ -212,5 +260,11 @@ export default function Index() {
     );
   }
 
-  return isSignedIn ? <SignedInPlaceholder /> : <SignInScreen />;
+  if (!isSignedIn) return <SignInScreen />;
+
+  return profileCompletion === "incomplete" ? (
+    <ProfileOnboardingScreen onSaved={markProfileComplete} />
+  ) : (
+    <SignedInPlaceholder />
+  );
 }
