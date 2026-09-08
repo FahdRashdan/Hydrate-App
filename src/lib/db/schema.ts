@@ -11,6 +11,10 @@ export const profiles = pgTable("profiles", {
   email: text("email").notNull(),
   firstName: text("first_name"),
   lastName: text("last_name"),
+  // Collected once in onboarding (`(customer)/onboarding/profile.tsx`), not
+  // synced from Clerk — Clerk sign-in here is Google/Apple only, neither of
+  // which reliably hands back a phone number.
+  phone: text("phone"),
   imageUrl: text("image_url"),
   // Mirrors Clerk `publicMetadata.role` (set manually in the Clerk dashboard
   // for v1) so the app can role-gate without an extra Clerk API call.
