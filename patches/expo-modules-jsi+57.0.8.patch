@@ -1,0 +1,90 @@
+diff --git a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/RuntimeScheduler.h b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/RuntimeScheduler.h
+index 6115e87..957527c 100644
+--- a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/RuntimeScheduler.h
++++ b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/RuntimeScheduler.h
+@@ -50,7 +50,7 @@ public:
+    `scheduleTask` dispatches through `fn`, which the host implements against
+    the real react::RuntimeScheduler.
+    */
+-  SWIFT_RETURNS_RETAINED RuntimeScheduler(void *scheduler, ScheduleFn fn) noexcept
++  RuntimeScheduler(void *scheduler, ScheduleFn fn) noexcept
+       : nativeScheduler(scheduler), scheduleFn(fn) {}
+ 
+   /**
+@@ -58,7 +58,7 @@ public:
+    caller's thread — intended for standalone runtimes (e.g. tests) that have
+    no React scheduler.
+    */
+-  SWIFT_RETURNS_RETAINED RuntimeScheduler() {}
++  RuntimeScheduler() {}
+ 
+   RuntimeScheduler(const RuntimeScheduler &) = delete;
+ 
+diff --git a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptRuntime.swift b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptRuntime.swift
+index 00f7329..b101abc 100644
+--- a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptRuntime.swift
++++ b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptRuntime.swift
+@@ -739,6 +739,21 @@ open class JavaScriptRuntime: Equatable, Identifiable, @unchecked Sendable {
+   }
+ }
+ 
++// Xcode 26.2 / Swift 6.2 flags `thisPtr`/`argumentsPtr` as "sending ... risks causing data races"
++// once they're captured across the *second* nested closure below (`assumeIsolated` ->
++// `forwardingSwiftErrorsToJS`), even though they're already rebound `nonisolated(unsafe)` one
++// level up — that rebinding only clears actor-isolation checks, not the region/"sending" checks
++// that re-trigger at each further closure boundary. Wrapping them in an explicitly
++// `@unchecked Sendable` box sidesteps that: Sendable types are exempt from region tracking
++// altogether, regardless of nesting depth. Tracked upstream, unresolved as of expo-modules-jsi
++// 57.0.8: https://github.com/expo/expo/issues/47539, https://github.com/expo/expo/issues/46242.
++// Remove this workaround once expo-modules-jsi ships a real fix.
++private struct UnsafeJSICallArgs: @unchecked Sendable {
++  let thisPtr: UnsafePointer<facebook.jsi.Value>
++  let argumentsPtr: UnsafePointer<facebook.jsi.Value>
++  let argumentsCount: Int
++}
++
+ private func createFunctionClosure(
+   runtime: JavaScriptRuntime, name: String? = nil, _ closure: @escaping JavaScriptRuntime.SyncFunctionClosure
+ ) -> expo.HostFunctionClosure {
+@@ -760,8 +775,7 @@ private func createFunctionClosure(
+     // synchronous call, so the `nonisolated(unsafe)` capture is sound. This removes a per-call class
+     // allocation + retain/release + dealloc that profiling showed dominating the no-op `@JS` host-call
+     // floor.
+-    nonisolated(unsafe) let thisPtr = thisPtr
+-    nonisolated(unsafe) let argumentsPtr = argumentsPtr
++    let callArgs = UnsafeJSICallArgs(thisPtr: thisPtr, argumentsPtr: argumentsPtr, argumentsCount: argumentsCount)
+     nonisolated(unsafe) let resultPtr = resultPtr
+ 
+     // See `withGuaranteedContext` for why neither the context nor the runtime is retained here, and
+@@ -769,8 +783,8 @@ private func createFunctionClosure(
+     withGuaranteedContext(context) { (context: HostFunctionContext, runtime) in
+       resultPtr.pointee = JavaScriptActor.assumeIsolated {
+         return forwardingSwiftErrorsToJS(runtime: runtime) {
+-          let this = UnsafeMutablePointer(mutating: thisPtr).move()
+-          let arguments = JavaScriptValuesBuffer(runtime, start: argumentsPtr, count: argumentsCount)
++          let this = UnsafeMutablePointer(mutating: callArgs.thisPtr).move()
++          let arguments = JavaScriptValuesBuffer(runtime, start: callArgs.argumentsPtr, count: callArgs.argumentsCount)
+           let thisValue = JavaScriptValue(runtime, this)
+           return try context.call(thisValue, consume arguments).asJSIValue()
+         }
+@@ -803,8 +817,7 @@ private func createFunctionClosure(
+     // handed in as a borrowed `JavaScriptUnownedValue` pointing straight at the C++-owned `this` slot:
+     // it is not moved out and no owning `JavaScriptValue` is allocated, so the closure avoids the
+     // per-call `weak`-runtime form/destroy and heap object that the owning `this` pays.
+-    nonisolated(unsafe) let thisPtr = thisPtr
+-    nonisolated(unsafe) let argumentsPtr = argumentsPtr
++    let callArgs = UnsafeJSICallArgs(thisPtr: thisPtr, argumentsPtr: argumentsPtr, argumentsCount: argumentsCount)
+     nonisolated(unsafe) let resultPtr = resultPtr
+ 
+     // See `withGuaranteedContext` for why neither the context nor the runtime is retained here, and
+@@ -812,8 +825,8 @@ private func createFunctionClosure(
+     withGuaranteedContext(context) { (context: UnownedThisHostFunctionContext, runtime) in
+       resultPtr.pointee = JavaScriptActor.assumeIsolated {
+         return forwardingSwiftErrorsToJS(runtime: runtime) {
+-          let arguments = JavaScriptValuesBuffer(runtime, start: argumentsPtr, count: argumentsCount)
+-          let thisValue = JavaScriptUnownedValue(runtime.pointee, thisPtr)
++          let arguments = JavaScriptValuesBuffer(runtime, start: callArgs.argumentsPtr, count: callArgs.argumentsCount)
++          let thisValue = JavaScriptUnownedValue(runtime.pointee, callArgs.thisPtr)
+           return try context.call(thisValue, consume arguments).asJSIValue()
+         }
+       }
