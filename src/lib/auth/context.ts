@@ -8,7 +8,7 @@ export type AuthContext = {
 // clerk-expo skill), so `+api.ts` routes verify the bearer token by hand
 // instead of using a framework adapter's `getAuth(request)`. The client
 // side sends `Authorization: Bearer ${await getToken()}` (see
-// `(customer)/onboarding/profile.tsx`).
+// `onboarding/profile.tsx`).
 export async function getAuthContext(request: Request): Promise<AuthContext | null> {
   const token = request.headers.get("authorization")?.match(/^Bearer (.+)$/)?.[1];
   if (!token) return null;

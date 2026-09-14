@@ -2,6 +2,13 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    // Explicit, rather than TS's default "ambient-include every package
+    // under node_modules/@types" — this project accumulates unrelated
+    // transitive @types packages (aws-lambda, pg, jsdom, ...) that should
+    // never be globally ambient. `jest` is needed for engine.test.ts's
+    // describe/test/expect globals; `node` for `process.env` used
+    // throughout src/lib/db, src/lib/auth, scripts/seed.ts, etc.
+    "types": ["jest", "node"],
     "paths": {
       "@/*": [
         "./src/*"

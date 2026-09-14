@@ -7,11 +7,12 @@ import {
   Text,
   View,
 } from "react-native";
-import { useAuth, useSSO, useUser } from "@clerk/expo";
+import { useAuth, useSSO } from "@clerk/expo";
 import { StatusBar } from "expo-status-bar";
+import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import ProfileOnboardingScreen from "@/app/(customer)/onboarding/profile";
+import ProfileOnboardingScreen from "@/app/onboarding/profile";
 
 // Palette sampled from design/Auth-UI-Design.png
 const NAVY = "#0B3477";
@@ -178,19 +179,16 @@ function SignInScreen() {
   );
 }
 
-function SignedInPlaceholder() {
-  // Temporary landing state until the Phase 2 role router (PLAN.md) replaces this
-  // with real customer/manager destinations.
+function ManagerPlaceholder() {
+  // Manager dashboard (PLAN.md Phase 4) is out of scope for this build —
+  // deliberately not a full route group, just enough to not strand a
+  // manager-role account on a blank screen.
   const { signOut } = useAuth();
-  const { user } = useUser();
 
   return (
     <View className="flex-1 items-center justify-center gap-4 bg-white px-8">
-      <Text className="text-xl font-bold" style={{ color: NAVY }}>
-        {`You're signed in${user?.firstName ? `, ${user.firstName}` : ""}!`}
-      </Text>
-      <Text className="text-center text-sm text-gray-500">
-        {user?.primaryEmailAddress?.emailAddress ?? "No email on file"}
+      <Text className="text-center text-xl font-bold" style={{ color: NAVY }}>
+        Manager dashboard is not available in this build.
       </Text>
       <Pressable
         onPress={() => signOut()}
@@ -203,17 +201,16 @@ function SignedInPlaceholder() {
   );
 }
 
-type ProfileCompletion = "checking" | "incomplete" | "complete";
+type ProfileStatus = "checking" | "incomplete" | "customer" | "manager";
 
-// Onboarding (`(customer)/onboarding/profile.tsx`) collects `phone`, which
-// Clerk never has (Google/Apple sign-in only) — so "has the profile row got
-// a phone yet" is the only reliable "did they finish onboarding" signal, and
-// it has to come from our own DB rather than `useUser()`.
-function useProfileCompletion(
-  isSignedIn: boolean | undefined,
-): [ProfileCompletion, () => void] {
+// Onboarding (`onboarding/profile.tsx`) collects `phone`, which Clerk never
+// has (Google/Apple sign-in only) — so "has the profile row got a phone
+// yet" is the only reliable "did they finish onboarding" signal, and it has
+// to come from our own DB rather than `useUser()`. The same `/api/profile`
+// response also carries `role`, which decides the customer/manager branch.
+function useProfileStatus(isSignedIn: boolean | undefined): [ProfileStatus, () => void] {
   const { getToken } = useAuth();
-  const [status, setStatus] = useState<ProfileCompletion>("checking");
+  const [status, setStatus] = useState<ProfileStatus>("checking");
 
   useEffect(() => {
     if (!isSignedIn) return;
@@ -233,9 +230,13 @@ function useProfileCompletion(
           return;
         }
         const profile = await res.json();
-        setStatus(profile.phone ? "complete" : "incomplete");
+        if (!profile.phone) {
+          setStatus("incomplete");
+        } else {
+          setStatus(profile.role === "manager" ? "manager" : "customer");
+        }
       } catch (err) {
-        console.error("Failed to check profile completion:", err);
+        console.error("Failed to check profile status:", err);
         if (!cancelled) setStatus("incomplete");
       }
     })();
@@ -244,15 +245,21 @@ function useProfileCompletion(
     };
   }, [isSignedIn, getToken]);
 
-  const markComplete = () => setStatus("complete");
-  return [status, markComplete];
+  const markOnboarded = () => setStatus("customer");
+  return [status, markOnboarded];
 }
 
 export default function Index() {
   const { isLoaded, isSignedIn } = useAuth();
-  const [profileCompletion, markProfileComplete] = useProfileCompletion(isSignedIn);
+  const [profileStatus, markOnboarded] = useProfileStatus(isSignedIn);
 
-  if (!isLoaded || (isSignedIn && profileCompletion === "checking")) {
+  useEffect(() => {
+    if (profileStatus === "customer") {
+      router.replace("/(customer)");
+    }
+  }, [profileStatus]);
+
+  if (!isLoaded || (isSignedIn && (profileStatus === "checking" || profileStatus === "customer"))) {
     return (
       <View className="flex-1 items-center justify-center bg-white">
         <ActivityIndicator color={NAVY} />
@@ -262,9 +269,7 @@ export default function Index() {
 
   if (!isSignedIn) return <SignInScreen />;
 
-  return profileCompletion === "incomplete" ? (
-    <ProfileOnboardingScreen onSaved={markProfileComplete} />
-  ) : (
-    <SignedInPlaceholder />
-  );
+  if (profileStatus === "manager") return <ManagerPlaceholder />;
+
+  return <ProfileOnboardingScreen onSaved={markOnboarded} />;
 }

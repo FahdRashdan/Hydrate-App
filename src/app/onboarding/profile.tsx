@@ -31,7 +31,7 @@ type ProfileOnboardingScreenProps = {
 };
 
 // First-time name/phone capture, shown once after sign-up before the customer
-// home (PLAN.md Phase 2 — `(customer)/onboarding/profile.tsx` +
+// home (PLAN.md Phase 2 — `onboarding/profile.tsx` +
 // `/api/profile+api.ts`). The home screen itself isn't built yet (Phase 3),
 // so a successful save just hands back to `onSaved` instead of routing on.
 export default function ProfileOnboardingScreen({ onSaved }: ProfileOnboardingScreenProps) {

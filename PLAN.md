@@ -49,44 +49,43 @@ bookable slots and prevent double-booking under concurrent submissions, on a DB 
 - [x] Install `drizzle-orm`, `@neondatabase/serverless`, `drizzle-kit` (devDependency)
 - [x] Create Neon project, get `DATABASE_URL` (needed to actually run migrations/tests against a real DB)
 - [x] Create Clerk project, enable Google + Apple providers
-- [ ] Configure session-token claim customization to include `role`
 - [x] Install `expo-dev-client`; local development build working (`npx expo prebuild --clean` + `npx expo run:ios`) — not yet produced via EAS cloud build
-- [ ] Create Sentry project(s) (client + Workers)
+- [x] Create Sentry project(s) (client + Workers)
 - [x] Install & run Inngest Dev Server locally (`npx inngest-cli@latest dev`) — no Inngest Cloud account needed yet
 
 ## Phase 1 — Schema + availability engine + tests (highest risk, do first)
 
-- [ ] `src/lib/db/schema.ts` — Drizzle schema: `locations`, `profiles`, `weekly_schedules`, `date_overrides`, `treatments`, `slot_definitions`, `capacity_configs`, `booking_windows`, `bookings` (+ indexes)
+- [x] `src/lib/db/schema.ts` — Drizzle schema: `locations`, `profiles`, `weekly_schedules`, `date_overrides`, `treatments`, `slot_definitions`, `booking_windows`, `bookings` (+ indexes). Deviation: no separate `capacity_configs` table — capacity lives directly on `slot_definitions` (a 1:1 join would've added nothing given the single shared capacity pool decision below).
 - [x] `src/lib/db/client.ts` — `neon()` + `drizzle(neon-http)` instance
 - [x] `drizzle.config.ts` + first migration generated (`drizzle-kit generate`)
-- [ ] `src/lib/db/sql/create_booking_safe.sql` — Postgres function (advisory lock + full re-validation + insert)
-- [ ] Apply `create_booking_safe` as a raw migration
-- [ ] `src/lib/availability/engine.ts`:
-  - [ ] `resolveEffectiveDayRules(dayOfWeek, weeklyRows, override)`
-  - [ ] `computeBookableSlots(input)` (pure function)
-  - [ ] `getBookableSlotsForDate` / `getBookableDates` (DB-fetching wrappers)
-- [ ] `src/lib/time/business-time.ts` — tz-aware date/weekday/48h helpers
-- [ ] `src/lib/config/location.ts` — `DEFAULT_LOCATION_ID` + seed helpers
-- [ ] Seed script: one location, sample weekly schedule, slot definitions, capacity config, booking window, a couple treatments
-- [ ] Test runner set up (jest-expo)
-- [ ] `engine.test.ts` — pure-function unit tests:
-  - [ ] weekday closed → no slots
-  - [ ] override closes a normally-open day
-  - [ ] override opens a normally-closed day with custom hours
-  - [ ] override with custom hours on an already-open day uses override hours
-  - [ ] slot extending past close time excluded
-  - [ ] slot before open time excluded
-  - [ ] 48h boundary (47h59m excluded, 48h00m included)
-  - [ ] date exactly on / outside booking-window bounds
-  - [ ] long treatment's full interval reduces capacity for every overlapping slot (not just exact-start match)
-  - [ ] two partially-overlapping bookings count additively
-  - [ ] pending bookings count toward capacity same as confirmed
-  - [ ] cancelled bookings don't count
-  - [ ] zero slot definitions for a weekday → no slots
-- [ ] Integration/concurrency tests (real Postgres — Neon branch or local):
+- [x] `src/lib/db/sql/create_booking_safe.sql` — Postgres function (advisory lock + full re-validation + insert). Returns a structured `(ok, error_code, booking)` row rather than raising an exception — sidesteps the "verify RAISE EXCEPTION messages surface usably" spike below entirely.
+- [x] Applied `create_booking_safe` as a raw migration (`0003_create_booking_safe_fn.sql`, via `drizzle-kit generate --custom`)
+- [x] `src/lib/availability/engine.ts` (pure functions only) + `src/lib/availability/queries.ts` (DB-fetching wrappers — split out so `engine.ts` never imports `db/client.ts`, keeping the unit tests DB-free):
+  - [x] `resolveEffectiveDayRules(dateStr, weeklyRows, override)`
+  - [x] `computeBookableSlots(input)` (pure function)
+  - [x] `getBookableSlotsForDate` / `getBookableDates` (DB-fetching wrappers, in `queries.ts`)
+- [x] `src/lib/time/business-time.ts` — fixed-timezone (Africa/Cairo, confirmed with user) date/weekday/48h helpers; `src/lib/time/format.ts` for display-only formatting
+- [x] `src/lib/config/location.ts` — `DEFAULT_LOCATION_ID`
+- [x] Seed script: `scripts/seed.ts` — one location, sample weekly schedule, slot definitions (with capacity), booking window, three treatments. Human-run: `npx tsx --env-file=.env scripts/seed.ts`
+- [x] Test runner set up (`jest-expo`, `jest.config.js`)
+- [x] `engine.test.ts` — pure-function unit tests, all 13 cases below covered (18 tests total, all passing):
+  - [x] weekday closed → no slots
+  - [x] override closes a normally-open day
+  - [x] override opens a normally-closed day with custom hours
+  - [x] override with custom hours on an already-open day uses override hours
+  - [x] slot extending past close time excluded
+  - [x] slot before open time excluded
+  - [x] 48h boundary (47h59m excluded, 48h00m included)
+  - [x] date exactly on / outside booking-window bounds
+  - [x] long treatment's full interval reduces capacity for every overlapping slot (not just exact-start match)
+  - [x] two partially-overlapping bookings count additively
+  - [x] pending bookings count toward capacity same as confirmed
+  - [x] cancelled bookings don't count
+  - [x] zero slot definitions for a weekday → no slots
+- [ ] Integration/concurrency tests (real Postgres — Neon branch or local) — **not attempted**, needs a live DB session (human follow-up):
   - [ ] two concurrent `create_booking_safe` calls for the last capacity unit → exactly one succeeds
   - [ ] availability re-validated at submit time even if it changed since the client's last fetch
-- [ ] Early spike: verify `db.execute(sql\`select * from create_booking_safe(...)\`)` under `neon-http` returns the composite row and surfaces `RAISE EXCEPTION` messages usably
+- [ ] Early spike: verify `db.execute(sql\`select * from create_booking_safe(...)\`)` under `neon-http` returns the composite row usably — **not attempted**, needs a live DB session; N/A for `RAISE EXCEPTION` message parsing specifically, since the function returns a structured row instead (see above)
 
 ## Phase 2 — Auth & profile
 
@@ -96,29 +95,30 @@ bookable slots and prevent double-booking under concurrent submissions, on a DB 
 - [x] Combined sign-in UI — Google + Apple on one screen, by choice (`src/app/index.tsx`, not a separate `(auth)/sign-in.tsx`)
 - [x] Google sign-in wired via browser SSO (`useSSO()`, `strategy: "oauth_google"`) — publishable key only, no separate Google Cloud OAuth clients or native Credential Manager
 - [x] Apple sign-in wired via browser SSO (`useSSO()`, `strategy: "oauth_apple"`) — deliberately not the native `expo-apple-authentication` flow, since that requires a paid Apple Developer Program membership to provision the Sign in with Apple capability, which isn't available yet
-- [ ] `src/lib/auth/context.ts` — `getAuthContext(request)`, `requireManager(request)`
-- [ ] `src/app/index.tsx` — full role/auth router (currently just signed-out → auth screen, signed-in → placeholder screen; manager/customer/onboarding branches not built yet)
-- [ ] `(customer)/_layout.tsx` and `(manager)/_layout.tsx` guards mirroring the router
+- [x] `src/lib/auth/context.ts` — `getAuthContext(request)`. No `requireManager` — manager dashboard is out of scope for this build, so nothing needs it yet.
+- [x] `src/app/index.tsx` — full role/auth router: signed-out → auth screen; signed-in + onboarding incomplete → `onboarding/profile.tsx`; signed-in + role=manager → inline placeholder (manager dashboard out of scope); signed-in + role=customer → redirects into `(customer)` Native Tabs.
+- [x] `(customer)/_layout.tsx` — Native Tabs guard (signed-in safety net only; role/onboarding already resolved by `index.tsx`). No `(manager)/_layout.tsx` — out of scope.
 - [x] `/api/webhooks/clerk+api.ts` — svix-verified `user.created`/`user.updated`/`user.deleted` → `inngest.send`
 - [x] Inngest function: idempotent `profiles` upsert (`onConflictDoUpdate` on `clerkUserId`) + role mirror, for `user.created`/`user.updated` (`src/lib/inngest/functions/sync-user-from-clerk.ts`)
 - [x] Inngest function: `profiles` row deletion on `user.deleted` (`src/lib/inngest/functions/delete-user-from-clerk.ts`)
-- [ ] `/api/profile+api.ts` (GET/PUT)
-- [ ] `(customer)/onboarding/profile.tsx` — first-time name/phone capture
+- [x] `/api/profile+api.ts` (GET/PUT)
+- [x] `onboarding/profile.tsx` — first-time name/phone capture. Deviation: moved from `(customer)/onboarding/profile.tsx` to a top-level `onboarding/profile.tsx` — it's rendered inline as a plain component by `index.tsx` (never routed to directly either way), moved purely so it isn't implicitly swept into the new `(customer)` Native Tabs route table.
 
 ## Phase 3 — Customer booking flow
 
-- [ ] `/api/treatments+api.ts` (GET active treatments)
-- [ ] `/api/availability/dates+api.ts` (GET)
-- [ ] `/api/availability/slots+api.ts` (GET)
-- [ ] `/api/bookings+api.ts` (POST → calls `create_booking_safe`, maps exceptions to 409/422)
-- [ ] `/api/bookings/me+api.ts` (GET)
-- [ ] `(customer)/index.tsx` — home (current booking or CTA)
-- [ ] `(customer)/booking/treatment.tsx` — step 1: choose treatment
-- [ ] `(customer)/booking/date.tsx` — step 2: choose date
-- [ ] `(customer)/booking/slot.tsx` — step 3: choose slot
-- [ ] `(customer)/booking/confirm.tsx` — step 4: confirm/edit name+phone, submit
-- [ ] `(customer)/booking/success.tsx` — booking created (pending)
-- [ ] `(customer)/booking-status.tsx` — view-only status
+- [x] `/api/treatments+api.ts` (GET active treatments)
+- [x] `/api/availability/dates+api.ts` (GET)
+- [x] `/api/availability/slots+api.ts` (GET)
+- [x] `/api/bookings+api.ts` (POST → calls `create_booking_safe`, maps `error_code` to 409/422)
+- [x] `/api/bookings/me+api.ts` (GET)
+- [x] `(customer)/index.tsx` — home (current booking or CTA). Folds in what would've been a separate `booking-status.tsx` (see below).
+- [x] `booking/treatment.tsx` — step 1: choose treatment
+- [x] `booking/date.tsx` — step 2: choose date
+- [x] `booking/slot.tsx` — step 3: choose slot
+- [x] `booking/confirm.tsx` — step 4: confirm/edit name+phone, submit
+- [x] `booking/success.tsx` — booking created (pending)
+- [x] `(customer)/profile.tsx` — read-only account info + sign out (not in the original Phase 3 list, added since the old placeholder's sign-out affordance needed a new home once Home became real)
+- Deviation: the whole booking wizard (`treatment`/`date`/`slot`/`confirm`/`success`) lives at a **top-level** `src/app/booking/*.tsx`, not nested under `(customer)/booking/*.tsx` — keeps it a sibling stack to the Native Tabs group so it can never be mistaken for an extra tab. No separate `booking-status.tsx` — folded into `(customer)/index.tsx` per the resolution above.
 
 ## Phase 4 — Manager dashboard
 
