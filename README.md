@@ -1,4 +1,4 @@
-# Hydrate — IV Therapy & Medical Wellness
+# Hydrate Booking App
 
 A full-stack, universal treatment-booking application built for high-end IV therapy and scalp wellness clinics. Built with **Expo SDK 57**, **React 19.2**, **NativeWind v4**, **Neon Postgres**, and **Clerk**.
 
@@ -192,15 +192,15 @@ npm test
 
 <div align="center">
 
-https://github.com/user-attachments/assets/94596507-d6b2-498b-8682-42eadd5ca5f7
+<video src="https://github.com/user-attachments/assets/94596507-d6b2-498b-8682-42eadd5ca5f7" width="700" controls muted></video>
 
 </div>
 
 ---
 
 <p align="center">
-  <strong>Hydrate</strong> — Premium IV Therapy & Medical Wellness
+  <strong>Hydrate Booking App</strong> — Premium IV Therapy & Medical Wellness
 </p>
 ```
 
-This keeps your original content intact and puts the demo in a dedicated **App Demo** section at the end.
+**One caveat:** `muted` only works if GitHub actually renders that URL as an HTML `<video>` element. GitHub's normal uploaded-video renderer doesn't give you control over the audio state. If you want it **guaranteed silent**, the best solution is to remove the audio track from the actual video file and re-upload the muted version.
