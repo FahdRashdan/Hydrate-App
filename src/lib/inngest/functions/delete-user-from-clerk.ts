@@ -2,7 +2,7 @@ import type { UserDeletedJSON } from "@clerk/backend";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
-import { profiles } from "@/lib/db/schema";
+import { bookings, profiles } from "@/lib/db/schema";
 import { inngest } from "@/lib/inngest/client";
 
 // Deletes the mirrored profile when the Clerk user is deleted. Idempotent by
@@ -18,7 +18,13 @@ export const deleteUserFromClerk = inngest.createFunction(
     }
 
     await step.run("delete-profile", async () => {
-      await db.delete(profiles).where(eq(profiles.clerkUserId, user.id as string));
+      const existing = await db.query.profiles.findFirst({
+        where: eq(profiles.clerkUserId, user.id as string),
+      });
+      if (existing) {
+        await db.delete(bookings).where(eq(bookings.customerId, existing.id));
+        await db.delete(profiles).where(eq(profiles.id, existing.id));
+      }
     });
   },
 );
