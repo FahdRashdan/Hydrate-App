@@ -6,46 +6,49 @@ A full-stack, universal treatment-booking application built for high-end IV ther
 
 ## Tech Stack
 
-| Layer | Technology | Details |
-| :--- | :--- | :--- |
-| **Framework** | [Expo SDK 57](https://docs.expo.dev/) / [Expo Router 57](https://docs.expo.dev/router/introduction/) | Universal app routing, React Compiler, typed routes |
-| **Frontend Core** | React 19.2, React Native 0.86 | Strict TypeScript (`.ts` and `.tsx`) |
-| **Styling** | [NativeWind v4](https://www.nativewind.dev/) (TailwindCSS) | Clean utility classes via `className`, zero `StyleSheet.create` |
-| **Native Components** | Native Tabs (`unstable-native-tabs`) & Apple SF Symbols | Native tab bar and vector iconography via `expo-symbols` |
-| **Database** | [Postgres on Neon](https://neon.tech/) | Serverless Postgres connected via HTTP |
-| **ORM** | [Drizzle ORM](https://orm.drizzle.team/) | Type-safe queries using `drizzle-orm/neon-http` |
-| **Authentication** | [Clerk](https://clerk.com/) | Google & Apple native OAuth only (no email/password) |
-| **Backend API** | Expo Router API Routes (`+api.ts`) | Serverless route endpoints co-located in the same repository |
-| **Background Jobs** | [Inngest](https://www.inngest.com/) | Webhook ingestion and asynchronous user profile syncing |
-| **Monitoring** | [Sentry](https://sentry.io/) | `@sentry/react-native` for real-time error tracking |
-| **Deployment Target** | EAS Hosting / Cloudflare Workers | Edge-compatible serverless build targets |
+| Layer                 | Technology                                                                                           | Details                                                         |
+| :-------------------- | :--------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------- |
+| **Framework**         | [Expo SDK 57](https://docs.expo.dev/) / [Expo Router 57](https://docs.expo.dev/router/introduction/) | Universal app routing, React Compiler, typed routes             |
+| **Frontend Core**     | React 19.2, React Native 0.86                                                                        | Strict TypeScript (`.ts` and `.tsx`)                            |
+| **Styling**           | [NativeWind v4](https://www.nativewind.dev/) (TailwindCSS)                                           | Clean utility classes via `className`, zero `StyleSheet.create` |
+| **Native Components** | Native Tabs (`unstable-native-tabs`) & Apple SF Symbols                                              | Native tab bar and vector iconography via `expo-symbols`        |
+| **Database**          | [Postgres on Neon](https://neon.tech/)                                                               | Serverless Postgres connected via HTTP                          |
+| **ORM**               | [Drizzle ORM](https://orm.drizzle.team/)                                                             | Type-safe queries using `drizzle-orm/neon-http`                 |
+| **Authentication**    | [Clerk](https://clerk.com/)                                                                          | Google & Apple native OAuth only (no email/password)            |
+| **Backend API**       | Expo Router API Routes (`+api.ts`)                                                                   | Serverless route endpoints co-located in the same repository    |
+| **Background Jobs**   | [Inngest](https://www.inngest.com/)                                                                  | Webhook ingestion and asynchronous user profile syncing         |
+| **Monitoring**        | [Sentry](https://sentry.io/)                                                                         | `@sentry/react-native` for real-time error tracking             |
+| **Deployment Target** | EAS Hosting / Cloudflare Workers                                                                     | Edge-compatible serverless build targets                        |
 
 ---
 
 ## Core Features
 
 ### 1. Customer Experience (Mobile App)
-- **Fluid Booking Flow**: Step-by-step wizard (*Treatment Selection → Date Picker → Real-time Slot Availability → Instant Reservation Hold*).
-- **Home Dashboard**: Dynamic time-of-day greetings, active upcoming visit status card, and signature treatment showcase.
-- **Appointments Management**: Segregated tabs for **Upcoming** and **Past Visits**, live booking status pills (`Pending`, `Confirmed`, `Cancelled`), and 1-tap rebooking.
-- **Account & Privacy**: Profile contact management, customer account deletion with cascading database cleanup, and privacy policy advisories.
-- **Refined Aesthetics**: Tailored luxury wellness UI matching Figma design specifications with zero emojis and 100% native vector SF Symbols.
+
+* **Fluid Booking Flow**: Step-by-step wizard (*Treatment Selection → Date Picker → Real-time Slot Availability → Instant Reservation Hold*).
+* **Home Dashboard**: Dynamic time-of-day greetings, active upcoming visit status card, and signature treatment showcase.
+* **Appointments Management**: Segregated tabs for **Upcoming** and **Past Visits**, live booking status pills (`Pending`, `Confirmed`, `Cancelled`), and 1-tap rebooking.
+* **Account & Privacy**: Profile contact management, customer account deletion with cascading database cleanup, and privacy policy advisories.
+* **Refined Aesthetics**: Tailored luxury wellness UI matching Figma design specifications with zero emojis and 100% native vector SF Symbols.
 
 ### 2. Concurrency-Safe Booking Engine
-- **Capacity & Availability Calculation**: Pure business logic engine ([`src/lib/availability/engine.ts`](file:///Users/fahdrashdan/Desktop/Hydrate_App/src/lib/availability/engine.ts)) computing bookable slots considering operating schedules, 48-hour minimum lead times, date overrides, and active booking windows.
-- **Double-Booking Prevention**: Because serverless HTTP database drivers (`neon-http`) do not support multi-query client-side transactions, atomic reservations are handled directly inside Postgres via the custom database function `create_booking_safe` utilizing transaction locks (`pg_advisory_xact_lock`).
-- **100% Unit Test Coverage**: Verified mathematical correctness with full Jest test suite for overlapping bookings, capacity constraints, and edge intervals.
+
+* **Capacity & Availability Calculation**: Pure business logic engine ([`src/lib/availability/engine.ts`](file:///Users/fahdrashdan/Desktop/Hydrate_App/src/lib/availability/engine.ts)) computing bookable slots considering operating schedules, 48-hour minimum lead times, date overrides, and active booking windows.
+* **Double-Booking Prevention**: Because serverless HTTP database drivers (`neon-http`) do not support multi-query client-side transactions, atomic reservations are handled directly inside Postgres via the custom database function `create_booking_safe` utilizing transaction locks (`pg_advisory_xact_lock`).
+* **100% Unit Test Coverage**: Verified mathematical correctness with full Jest test suite for overlapping bookings, capacity constraints, and edge intervals.
 
 ### 3. Identity, Webhooks & Profiles
-- **Passwordless Authentication**: Google and Apple OAuth through `@clerk/expo`.
-- **Event-Driven Profile Sync**: When a user registers or deletes their account, Clerk webhooks dispatch events to Inngest background functions ([`src/lib/inngest/functions/`](file:///Users/fahdrashdan/Desktop/Hydrate_App/src/lib/inngest/functions/)) to sync customer records with Neon Postgres.
-- **First-Time Onboarding**: Captures verified customer name and mobile number required for clinical appointments.
+
+* **Passwordless Authentication**: Google and Apple OAuth through `@clerk/expo`.
+* **Event-Driven Profile Sync**: When a user registers or deletes their account, Clerk webhooks dispatch events to Inngest background functions ([`src/lib/inngest/functions/`](file:///Users/fahdrashdan/Desktop/Hydrate_App/src/lib/inngest/functions/)) to sync customer records with Neon Postgres.
+* **First-Time Onboarding**: Captures verified customer name and mobile number required for clinical appointments.
 
 ---
 
 ## Project Structure
 
-```
+```text
 ├── assets/                       # Static brand logos, fonts, and splash assets
 ├── design/                       # UI/UX design mockups and Figma inspirations
 ├── drizzle/                      # Generated SQL migration files
@@ -114,12 +117,15 @@ INNGEST_DEV=true
 ## Getting Started
 
 ### 1. Install Dependencies
+
 ```bash
 npm install
 ```
 
 ### 2. Database Migrations & Seeding
+
 Ensure your database tables, procedures, and seed catalog are up to date:
+
 ```bash
 # Generate migrations
 npm run db:generate
@@ -132,13 +138,17 @@ npx tsx scripts/seed.ts
 ```
 
 ### 3. Start Background Workers
+
 Run the local Inngest development server in a separate terminal:
+
 ```bash
 npm run inngest:dev
 ```
 
 ### 4. Run the Development Client
+
 Because Clerk native Google/Apple authentication requires native credentials, run the project in a development build:
+
 ```bash
 # Start Metro bundler with cache cleared
 npx expo start --clear
@@ -171,16 +181,26 @@ npm test
 
 ## Architectural Rules & Decisions
 
-- **Single Universal Repo**: Customer booking flow and API routes exist together in one codebase.
-- **No Client Transactions**: Neon HTTP does not support client-managed transactions; all concurrent reservations use the `create_booking_safe` Postgres routine.
-- **Zero Inline Styles**: Styling strictly utilizes NativeWind Tailwind classes; dynamic theme tokens are imported from `src/lib/theme/colors.ts`.
-- **Native Tabs Only**: Navigation uses Expo Router's Native Tabs (`@expo/ui` / `unstable-native-tabs`) for native performance and look on iOS and Android.
+* **Single Universal Repo**: Customer booking flow and API routes exist together in one codebase.
+* **No Client Transactions**: Neon HTTP does not support client-managed transactions; all concurrent reservations use the `create_booking_safe` Postgres routine.
+* **Zero Inline Styles**: Styling strictly utilizes NativeWind Tailwind classes; dynamic theme tokens are imported from `src/lib/theme/colors.ts`.
+* **Native Tabs Only**: Navigation uses Expo Router's Native Tabs (`@expo/ui` / `unstable-native-tabs`) for native performance and look on iOS and Android.
 
+---
 
+## App Demo
 
-
-
+<div align="center">
 
 https://github.com/user-attachments/assets/94596507-d6b2-498b-8682-42eadd5ca5f7
 
+</div>
 
+---
+
+<p align="center">
+  <strong>Hydrate</strong> — Premium IV Therapy & Medical Wellness
+</p>
+```
+
+This keeps your original content intact and puts the demo in a dedicated **App Demo** section at the end.
