@@ -175,3 +175,12 @@ npm test
 - **No Client Transactions**: Neon HTTP does not support client-managed transactions; all concurrent reservations use the `create_booking_safe` Postgres routine.
 - **Zero Inline Styles**: Styling strictly utilizes NativeWind Tailwind classes; dynamic theme tokens are imported from `src/lib/theme/colors.ts`.
 - **Native Tabs Only**: Navigation uses Expo Router's Native Tabs (`@expo/ui` / `unstable-native-tabs`) for native performance and look on iOS and Android.
+
+
+
+
+
+
+https://github.com/user-attachments/assets/94596507-d6b2-498b-8682-42eadd5ca5f7
+
+
