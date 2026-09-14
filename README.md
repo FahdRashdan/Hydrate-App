@@ -199,8 +199,5 @@ npm test
 ---
 
 <p align="center">
-  <strong>Hydrate Booking App</strong> — Premium IV Therapy & Medical Wellness
+  <strong>Hydrate Booking App</strong>
 </p>
-```
-
-**One caveat:** `muted` only works if GitHub actually renders that URL as an HTML `<video>` element. GitHub's normal uploaded-video renderer doesn't give you control over the audio state. If you want it **guaranteed silent**, the best solution is to remove the audio track from the actual video file and re-upload the muted version.
