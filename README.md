@@ -1,56 +1,177 @@
-# Welcome to your Expo app 👋
+# Hydrate — IV Therapy & Medical Wellness
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A full-stack, universal treatment-booking application built for high-end IV therapy and scalp wellness clinics. Built with **Expo SDK 57**, **React 19.2**, **NativeWind v4**, **Neon Postgres**, and **Clerk**.
 
-## Get started
+---
 
-1. Install dependencies
+## Tech Stack
 
-   ```bash
-   npm install
-   ```
+| Layer | Technology | Details |
+| :--- | :--- | :--- |
+| **Framework** | [Expo SDK 57](https://docs.expo.dev/) / [Expo Router 57](https://docs.expo.dev/router/introduction/) | Universal app routing, React Compiler, typed routes |
+| **Frontend Core** | React 19.2, React Native 0.86 | Strict TypeScript (`.ts` and `.tsx`) |
+| **Styling** | [NativeWind v4](https://www.nativewind.dev/) (TailwindCSS) | Clean utility classes via `className`, zero `StyleSheet.create` |
+| **Native Components** | Native Tabs (`unstable-native-tabs`) & Apple SF Symbols | Native tab bar and vector iconography via `expo-symbols` |
+| **Database** | [Postgres on Neon](https://neon.tech/) | Serverless Postgres connected via HTTP |
+| **ORM** | [Drizzle ORM](https://orm.drizzle.team/) | Type-safe queries using `drizzle-orm/neon-http` |
+| **Authentication** | [Clerk](https://clerk.com/) | Google & Apple native OAuth only (no email/password) |
+| **Backend API** | Expo Router API Routes (`+api.ts`) | Serverless route endpoints co-located in the same repository |
+| **Background Jobs** | [Inngest](https://www.inngest.com/) | Webhook ingestion and asynchronous user profile syncing |
+| **Monitoring** | [Sentry](https://sentry.io/) | `@sentry/react-native` for real-time error tracking |
+| **Deployment Target** | EAS Hosting / Cloudflare Workers | Edge-compatible serverless build targets |
 
-2. Start the app
+---
 
-   ```bash
-   npx expo start
-   ```
+## Core Features
 
-In the output, you'll find options to open the app in a
+### 1. Customer Experience (Mobile App)
+- **Fluid Booking Flow**: Step-by-step wizard (*Treatment Selection → Date Picker → Real-time Slot Availability → Instant Reservation Hold*).
+- **Home Dashboard**: Dynamic time-of-day greetings, active upcoming visit status card, and signature treatment showcase.
+- **Appointments Management**: Segregated tabs for **Upcoming** and **Past Visits**, live booking status pills (`Pending`, `Confirmed`, `Cancelled`), and 1-tap rebooking.
+- **Account & Privacy**: Profile contact management, customer account deletion with cascading database cleanup, and privacy policy advisories.
+- **Refined Aesthetics**: Tailored luxury wellness UI matching Figma design specifications with zero emojis and 100% native vector SF Symbols.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### 2. Concurrency-Safe Booking Engine
+- **Capacity & Availability Calculation**: Pure business logic engine ([`src/lib/availability/engine.ts`](file:///Users/fahdrashdan/Desktop/Hydrate_App/src/lib/availability/engine.ts)) computing bookable slots considering operating schedules, 48-hour minimum lead times, date overrides, and active booking windows.
+- **Double-Booking Prevention**: Because serverless HTTP database drivers (`neon-http`) do not support multi-query client-side transactions, atomic reservations are handled directly inside Postgres via the custom database function `create_booking_safe` utilizing transaction locks (`pg_advisory_xact_lock`).
+- **100% Unit Test Coverage**: Verified mathematical correctness with full Jest test suite for overlapping bookings, capacity constraints, and edge intervals.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### 3. Identity, Webhooks & Profiles
+- **Passwordless Authentication**: Google and Apple OAuth through `@clerk/expo`.
+- **Event-Driven Profile Sync**: When a user registers or deletes their account, Clerk webhooks dispatch events to Inngest background functions ([`src/lib/inngest/functions/`](file:///Users/fahdrashdan/Desktop/Hydrate_App/src/lib/inngest/functions/)) to sync customer records with Neon Postgres.
+- **First-Time Onboarding**: Captures verified customer name and mobile number required for clinical appointments.
 
-## Get a fresh project
+---
 
-When you're ready, run:
+## Project Structure
 
-```bash
-npm run reset-project
+```
+├── assets/                       # Static brand logos, fonts, and splash assets
+├── design/                       # UI/UX design mockups and Figma inspirations
+├── drizzle/                      # Generated SQL migration files
+├── src/
+│   ├── app/                      # Expo Router screens and API routes
+│   │   ├── (customer)/           # Customer layout with Native Tabs
+│   │   │   ├── index.tsx         # Home dashboard & treatment showcase
+│   │   │   ├── bookings.tsx      # My Bookings (Upcoming & History)
+│   │   │   └── profile.tsx       # Account settings, Privacy, Delete account
+│   │   ├── booking/              # Modal booking wizard flow
+│   │   │   ├── treatment.tsx     # Step 1: Select treatment
+│   │   │   ├── date.tsx          # Step 2: Select date
+│   │   │   ├── slot.tsx          # Step 3: Select time slot
+│   │   │   ├── confirm.tsx       # Step 4: Review and submit
+│   │   │   └── success.tsx       # Step 5: Booking confirmation state
+│   │   ├── onboarding/           # First-time profile completion
+│   │   ├── api/                  # Expo Router backend API routes (+api.ts)
+│   │   │   ├── availability/     # Slot and date computation endpoints
+│   │   │   ├── bookings/         # Booking creation and customer query endpoints
+│   │   │   ├── profile/          # Profile GET, PUT, and DELETE handlers
+│   │   │   ├── treatments/       # Active treatment catalog
+│   │   │   ├── webhooks/clerk/   # Clerk authentication webhooks
+│   │   │   └── inngest+api.ts    # Inngest serverless event handler
+│   │   ├── _layout.tsx           # Global Root layout with ClerkProvider
+│   │   └── index.tsx             # Root auth router and splash gateway
+│   └── lib/
+│       ├── api/                  # Authenticated client-side fetcher
+│       ├── auth/                 # Backend Clerk authentication utilities
+│       ├── availability/         # Availability engine & availability queries
+│       ├── config/               # Location and business configuration
+│       ├── db/                   # Neon connection and Drizzle schema
+│       ├── inngest/              # Inngest client and event functions
+│       ├── theme/                # Curated brand color tokens
+│       ├── time/                 # Display and business time utilities
+│       └── ui/                   # Reusable UI components & Apple SF Symbols
+├── AGENTS.md                     # Architectural rules & project constraints
+├── PLAN.md                       # Execution plan & development tracker
+└── package.json                  # Dependencies, scripts, and build metadata
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-### Other setup steps
+## Environment Variables
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Create a `.env` file in the root directory:
 
-## Learn more
+```env
+# Database (Neon Serverless Postgres)
+DATABASE_URL=postgresql://<user>:<password>@<ep-project-id>.us-east-2.aws.neon.tech/neondb?sslmode=require
 
-To learn more about developing your project with Expo, look at the following resources:
+# Clerk Authentication
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+CLERK_WEBHOOK_SIGNING_SECRET=whsec_...
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+# Sentry Observability
+EXPO_PUBLIC_SENTRY_DSN=https://...
+SENTRY_AUTH_TOKEN=sntrys_...
 
-## Join the community
+# Inngest Background Jobs
+INNGEST_DEV=true
+```
 
-Join our community of developers creating universal apps.
+---
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Getting Started
+
+### 1. Install Dependencies
+```bash
+npm install
+```
+
+### 2. Database Migrations & Seeding
+Ensure your database tables, procedures, and seed catalog are up to date:
+```bash
+# Generate migrations
+npm run db:generate
+
+# Apply migrations to Neon Postgres
+npm run db:migrate
+
+# Seed initial treatments, schedules, and chair capacity
+npx tsx scripts/seed.ts
+```
+
+### 3. Start Background Workers
+Run the local Inngest development server in a separate terminal:
+```bash
+npm run inngest:dev
+```
+
+### 4. Run the Development Client
+Because Clerk native Google/Apple authentication requires native credentials, run the project in a development build:
+```bash
+# Start Metro bundler with cache cleared
+npx expo start --clear
+
+# Run directly on iOS Simulator
+npm run ios
+
+# Run directly on Android Emulator
+npm run android
+```
+
+---
+
+## Verification & Testing
+
+Verify codebase correctness and stability using non-interactive checks:
+
+```bash
+# Type check all TypeScript files
+npx tsc --noEmit
+
+# Lint the codebase
+npm run lint
+
+# Run availability engine unit tests
+npm test
+```
+
+---
+
+## Architectural Rules & Decisions
+
+- **Single Universal Repo**: Customer booking flow and API routes exist together in one codebase.
+- **No Client Transactions**: Neon HTTP does not support client-managed transactions; all concurrent reservations use the `create_booking_safe` Postgres routine.
+- **Zero Inline Styles**: Styling strictly utilizes NativeWind Tailwind classes; dynamic theme tokens are imported from `src/lib/theme/colors.ts`.
+- **Native Tabs Only**: Navigation uses Expo Router's Native Tabs (`@expo/ui` / `unstable-native-tabs`) for native performance and look on iOS and Android.
